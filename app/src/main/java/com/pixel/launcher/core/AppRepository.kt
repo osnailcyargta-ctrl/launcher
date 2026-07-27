@@ -142,8 +142,9 @@ class AppRepository(private val context: Context) {
             val intent = Intent(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_LAUNCHER)
                 .setComponent(component)
-                .setSourceBounds(source)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            // setSourceBounds returns void, so it cannot join the builder chain.
+            intent.sourceBounds = source
             context.startActivity(intent, opts)
         }.isSuccess
     }
