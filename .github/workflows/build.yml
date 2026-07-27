@@ -41,7 +41,18 @@ jobs:
       - name: Build debug + release APK
         env:
           BUILD_NUMBER: ${{ github.run_number }}
-        run: ./gradlew assembleDebug assembleRelease --stacktrace --no-daemon
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug assembleRelease --no-daemon 2>&1 | tee build.log
+
+      # Gradle buries compile errors under a few hundred lines of stack trace;
+      # this repeats just the diagnostics at the end of the job log.
+      - name: Compile errors
+        if: failure()
+        run: |
+          echo "=== compile diagnostics ==="
+          grep -E "^(e|w): |^FAILURE|^\* What went wrong" build.log | head -80 || true
+          echo "=== end ==="
 
       - name: Rename artifacts
         run: |
