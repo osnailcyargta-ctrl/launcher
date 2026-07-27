@@ -45,7 +45,7 @@ fun DisplayText(
     color: Color,
     modifier: Modifier = Modifier,
     maxLines: Int = 1,
-    align: TextAlign? = null,
+    align: TextAlign = TextAlign.Unspecified,
     letterSpacing: TextUnit = 0.sp,
 ) {
     BasicText(
@@ -70,7 +70,7 @@ fun BodyText(
     color: Color,
     modifier: Modifier = Modifier,
     maxLines: Int = 1,
-    align: TextAlign? = null,
+    align: TextAlign = TextAlign.Unspecified,
     letterSpacing: TextUnit = 0.sp,
 ) {
     BasicText(
