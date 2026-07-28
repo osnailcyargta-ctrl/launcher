@@ -72,6 +72,18 @@ jobs:
             debug/*.apk
           if-no-files-found: error
 
+      # The rolling release keeps exactly one APK, so the page never fills up
+      # with stale builds that someone might install by mistake.
+      - name: Clear previous release assets
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view latest --json assets -q '.assets[].name' 2>/dev/null \
+            | while read -r name; do
+                [ -n "$name" ] && gh release delete-asset latest "$name" -y || true
+              done
+
       # Every build on the default/feature branch refreshes a single "latest"
       # release, so the APK always has a stable download link.
       - name: Publish rolling release
