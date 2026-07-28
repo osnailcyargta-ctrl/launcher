@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PixelLauncher"
 include(":app")
+include(":iconpack")

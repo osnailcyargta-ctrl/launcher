@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Pixel Icon Pack"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <activity
+            android:name=".IconPackActivity"
+            android:exported="true"
+            android:label="Pixel Icon Pack">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+              The two actions every launcher scans for when it lists installed
+              icon packs. Declaring both covers Nova, Lawnchair, Apex, ADW and
+              Pixel Launcher itself.
+            -->
+            <intent-filter>
+                <action android:name="org.adw.launcher.THEMES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.novalauncher.THEME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="com.pixel.launcher.iconpack"
+            android:value="true" />
+
+    </application>
+
+</manifest>

@@ -23,390 +23,59 @@ class PixelIcon(
     val rows: List<String>,
 )
 
-private const val WHITE = 0xFFF4F4F4.toInt()
-private const val BLACK = 0xFF12141A.toInt()
-
 /**
  * The launcher's own icon pack.
  *
  * Only widely installed apps get bespoke artwork; everything else falls back to
  * the app's real icon re-coloured into the active palette, so a drawer never
  * ends up half themed and half not.
+ *
+ * The artwork itself lives in the generated [PixelIconArt]; edit the grids in
+ * `tools/gen_iconpack.py` and re-run it, which updates both this and the
+ * standalone icon-pack APK.
  */
 object PixelIconPack {
 
-    private val phone = listOf(
-        "            ",
-        "   #####    ",
-        "  ##   ##   ",
-        "  ##   ##   ",
-        "   #####    ",
-        "    ###     ",
-        "     ###    ",
-        "      ###   ",
-        "      ##  ##",
-        "       ## ##",
-        "        ####",
-        "            ",
-    )
-
-    private val message = listOf(
-        "            ",
-        "  ########  ",
-        " ########## ",
-        " ########## ",
-        " ## ## ## # ",
-        " ########## ",
-        " ########## ",
-        " ########## ",
-        "  ######### ",
-        "  ###       ",
-        "  #         ",
-        "            ",
-    )
-
-    private val camera = listOf(
-        "            ",
-        "     ###    ",
-        "  ########  ",
-        " ########## ",
-        " ###    ### ",
-        " ##  ##  ## ",
-        " ##  ##  ## ",
-        " ###    ### ",
-        " ########## ",
-        "  ########  ",
-        "            ",
-        "            ",
-    )
-
-    private val gallery = listOf(
-        "            ",
-        " ########## ",
-        " #        # ",
-        " #  ++    # ",
-        " #        # ",
-        " #    ##  # ",
-        " #   #### # ",
-        " #  ##### # ",
-        " #########  ",
-        " ########## ",
-        "            ",
-        "            ",
-    )
-
-    private val globe = listOf(
-        "            ",
-        "   ######   ",
-        "  ##    ##  ",
-        " ##  ##  ## ",
-        " ## #  # ## ",
-        " ########## ",
-        " ## #  # ## ",
-        " ##  ##  ## ",
-        "  ##    ##  ",
-        "   ######   ",
-        "            ",
-        "            ",
-    )
-
-    private val play = listOf(
-        "            ",
-        "  ########  ",
-        " ########## ",
-        " ###    ### ",
-        " ##  #   ## ",
-        " ##  ###  # ",
-        " ##  #   ## ",
-        " ###    ### ",
-        " ########## ",
-        "  ########  ",
-        "            ",
-        "            ",
-    )
-
-    private val chat = listOf(
-        "            ",
-        "   ######   ",
-        "  ########  ",
-        " ##      ## ",
-        " ##  ##  ## ",
-        " ##  ##  ## ",
-        " ##      ## ",
-        "  ########  ",
-        "   #######  ",
-        "  ###       ",
-        "            ",
-        "            ",
-    )
-
-    private val square = listOf(
-        "            ",
-        " ########## ",
-        " ##      ## ",
-        " #   ##   # ",
-        " #  ####  # ",
-        " #  ####  # ",
-        " #   ##   # ",
-        " ##      ## ",
-        " ####   ### ",
-        " ########## ",
-        "            ",
-        "            ",
-    )
-
-    private val wave = listOf(
-        "            ",
-        "   ######   ",
-        "  ########  ",
-        " ###    ### ",
-        " ## #### ## ",
-        " ##      ## ",
-        " ## #### ## ",
-        " ###    ### ",
-        "  ########  ",
-        "   ######   ",
-        "            ",
-        "            ",
-    )
-
-    private val mail = listOf(
-        "            ",
-        "            ",
-        " ########## ",
-        " ##      ## ",
-        " # ##  ## # ",
-        " #   ##   # ",
-        " #  #  #  # ",
-        " ## #  # ## ",
-        " ########## ",
-        "            ",
-        "            ",
-        "            ",
-    )
-
-    private val pin = listOf(
-        "            ",
-        "   ######   ",
-        "  ########  ",
-        " ###    ### ",
-        " ##  ##  ## ",
-        " ##  ##  ## ",
-        " ###    ### ",
-        "  ########  ",
-        "   ######   ",
-        "    ####    ",
-        "     ##     ",
-        "            ",
-    )
-
-    private val calculator = listOf(
-        "            ",
-        " ########## ",
-        " #        # ",
-        " #  ####  # ",
-        " #        # ",
-        " # ## ##  # ",
-        " #        # ",
-        " # ## ##  # ",
-        " #        # ",
-        " ########## ",
-        "            ",
-        "            ",
-    )
-
-    private val calendar = listOf(
-        "            ",
-        "  ##    ##  ",
-        " ########## ",
-        " ########## ",
-        " #        # ",
-        " # ## ##  # ",
-        " #        # ",
-        " # ## ##  # ",
-        " #        # ",
-        " ########## ",
-        "            ",
-        "            ",
-    )
-
-    private val clock = listOf(
-        "            ",
-        "   ######   ",
-        "  ##    ##  ",
-        " ##  #   ## ",
-        " ##  #   ## ",
-        " ##  ###  # ",
-        " ##      ## ",
-        " ##      ## ",
-        "  ##    ##  ",
-        "   ######   ",
-        "            ",
-        "            ",
-    )
-
-    private val folder = listOf(
-        "            ",
-        "            ",
-        " ####       ",
-        " ########## ",
-        " ##      ## ",
-        " ##      ## ",
-        " ##      ## ",
-        " ##      ## ",
-        " ########## ",
-        "            ",
-        "            ",
-        "            ",
-    )
-
-    private val note = listOf(
-        "            ",
-        "       #### ",
-        "       #### ",
-        "       ##   ",
-        "       ##   ",
-        "       ##   ",
-        "  ###  ##   ",
-        " ##### ##   ",
-        " #####      ",
-        "  ###       ",
-        "            ",
-        "            ",
-    )
-
-    private val store = listOf(
-        "            ",
-        "   ##       ",
-        "   ###      ",
-        "   ####     ",
-        "   #####    ",
-        "   ######   ",
-        "   #####    ",
-        "   ####     ",
-        "   ###      ",
-        "   ##       ",
-        "            ",
-        "            ",
-    )
-
-    private val plane = listOf(
-        "            ",
-        "         ## ",
-        "       #### ",
-        "     ###### ",
-        "   ######   ",
-        " ######     ",
-        "   ####     ",
-        "    ###     ",
-        "     ##     ",
-        "      #     ",
-        "            ",
-        "            ",
-    )
-
-    private val gamepad = listOf(
-        "            ",
-        "            ",
-        "  ########  ",
-        " ########## ",
-        " # ##   # # ",
-        " ####  ## # ",
-        " # ##   # # ",
-        " ########## ",
-        "  ##    ##  ",
-        "            ",
-        "            ",
-        "            ",
-    )
-
-    private val cart = listOf(
-        "            ",
-        " ##         ",
-        " ######     ",
-        " #    ##    ",
-        " #     ##   ",
-        " #    ###   ",
-        " ######     ",
-        "   ##  ##   ",
-        "            ",
-        "  ##    ##  ",
-        "            ",
-        "            ",
-    )
-
-    private val wallet = listOf(
-        "            ",
-        "            ",
-        " ########## ",
-        " ##      ## ",
-        " ##      ## ",
-        " ##    #### ",
-        " ##    # ## ",
-        " ##    #### ",
-        " ########## ",
-        "            ",
-        "            ",
-        "            ",
-    )
-
-    private val video = listOf(
-        "            ",
-        "            ",
-        " #######    ",
-        " ##   ##  # ",
-        " ## #  ####",
-        " ##  #  ### ",
-        " ## #  ####",
-        " ##   ##  # ",
-        " #######    ",
-        "            ",
-        "            ",
-        "            ",
-    )
-
     /**
-     * Matched on package-name fragments, longest first, so `com.google.android
-     * .apps.messaging` picks the message glyph rather than a generic Google one.
+     * Matched on package-name fragments, first rule wins, so the specific
+     * entries are listed before the catch-all category ones.
      */
     private val rules: List<Pair<List<String>, PixelIcon>> = listOf(
-        listOf("whatsapp") to PixelIcon(0xFF075E54.toInt(), WHITE, rows = chat),
-        listOf("telegram") to PixelIcon(0xFF229ED9.toInt(), WHITE, rows = plane),
-        listOf("instagram") to PixelIcon(0xFFC13584.toInt(), WHITE, rows = square),
-        listOf("facebook", "katana") to PixelIcon(0xFF1877F2.toInt(), WHITE, rows = square),
-        listOf("twitter", "com.x.") to PixelIcon(BLACK, WHITE, rows = square),
-        listOf("tiktok", "musically") to PixelIcon(BLACK, 0xFF25F4EE.toInt(), rows = note),
-        listOf("youtube") to PixelIcon(0xFFCC0000.toInt(), WHITE, rows = play),
-        listOf("spotify") to PixelIcon(0xFF1DB954.toInt(), BLACK, rows = wave),
-        listOf("discord") to PixelIcon(0xFF5865F2.toInt(), WHITE, rows = gamepad),
-        listOf("netflix") to PixelIcon(BLACK, 0xFFE50914.toInt(), rows = play),
-        listOf("chrome", "browser", "firefox", "opera") to
-            PixelIcon(0xFF1A73E8.toInt(), WHITE, rows = globe),
-        listOf("gm", "gmail", "email", "outlook", ".mail") to
-            PixelIcon(0xFFD93025.toInt(), WHITE, rows = mail),
-        listOf("maps", "waze") to PixelIcon(0xFF34A853.toInt(), WHITE, rows = pin),
-        listOf("camera", "gcam") to PixelIcon(0xFF3C4043.toInt(), WHITE, rows = camera),
-        listOf("gallery", "photos", "album") to
-            PixelIcon(0xFF4285F4.toInt(), WHITE, 0xFFFBBC05.toInt(), gallery),
-        listOf("dialer", "incallui", ".phone", "contacts") to
-            PixelIcon(0xFF1E8E3E.toInt(), WHITE, rows = phone),
-        listOf("messaging", "messages", ".mms", ".sms") to
-            PixelIcon(0xFF1A73E8.toInt(), WHITE, rows = message),
-        listOf("calculator") to PixelIcon(0xFF3C4043.toInt(), WHITE, rows = calculator),
-        listOf("calendar") to PixelIcon(0xFF1A73E8.toInt(), WHITE, rows = calendar),
-        listOf("deskclock", "clock", "alarm") to PixelIcon(0xFF202124.toInt(), WHITE, rows = clock),
-        listOf("documentsui", "filemanager", "files", "explorer") to
-            PixelIcon(0xFFFBBC05.toInt(), BLACK, rows = folder),
-        listOf("music", "audio", "podcast") to PixelIcon(0xFFEA4335.toInt(), WHITE, rows = note),
-        listOf("vending", "playstore", "appstore", "fdroid", "aurora") to
-            PixelIcon(0xFF34A853.toInt(), WHITE, rows = store),
-        listOf("videos", "player", "vlc", "mx") to PixelIcon(0xFF9334E6.toInt(), WHITE, rows = video),
-        listOf("game", "unity", "roblox", "minecraft", "genshin") to
-            PixelIcon(0xFF7B1FA2.toInt(), WHITE, rows = gamepad),
-        listOf("shop", "tokopedia", "shopee", "lazada", "amazon", "bukalapak") to
-            PixelIcon(0xFFF4511E.toInt(), WHITE, rows = cart),
-        listOf("bank", "wallet", "pay", "dana", "ovo", "gopay", "bca", "bri", "mandiri") to
-            PixelIcon(0xFF00897B.toInt(), WHITE, rows = wallet),
+        listOf("whatsapp") to PixelIconArt.whatsapp,
+        listOf("telegram") to PixelIconArt.telegram,
+        listOf("instagram") to PixelIconArt.instagram,
+        listOf("facebook", "katana") to PixelIconArt.facebook,
+        listOf("twitter", "com.x.") to PixelIconArt.twitter,
+        listOf("tiktok", "musically", "ugc.trill") to PixelIconArt.tiktok,
+        listOf("youtube.music") to PixelIconArt.music,
+        listOf("youtube") to PixelIconArt.youtube,
+        listOf("spotify") to PixelIconArt.spotify,
+        listOf("discord") to PixelIconArt.discord,
+        listOf("netflix") to PixelIconArt.netflix,
+        listOf("chrome") to PixelIconArt.chrome,
+        listOf("firefox", "mozilla") to PixelIconArt.firefox,
+        listOf("browser", "opera", "brave", "emmx") to PixelIconArt.globe,
+        listOf("android.gm", "gmail", "outlook", ".mail") to PixelIconArt.gmail,
+        listOf("maps", "waze") to PixelIconArt.maps,
+        listOf("camera", "gcam") to PixelIconArt.camera,
+        listOf("gallery", "photos", "album") to PixelIconArt.photos,
+        listOf("dialer", "incallui", ".phone", "contacts") to PixelIconArt.contacts,
+        listOf("messaging", "messages", ".mms", ".sms") to PixelIconArt.sms,
+        listOf("calculator") to PixelIconArt.calculator,
+        listOf("calendar") to PixelIconArt.calendar,
+        listOf("deskclock", "clock", "alarm") to PixelIconArt.clock,
+        listOf("documentsui", "filemanager", "fileexplorer", "files") to PixelIconArt.files,
+        listOf("music", "audio", "podcast") to PixelIconArt.music,
+        listOf("vending", "playstore", "fdroid", "aurora") to PixelIconArt.playstore,
+        listOf("videolan", "vlc", "mxtech", "player") to PixelIconArt.player,
+        listOf("game", "unity", "roblox", "minecraft", "genshin", "mihoyo") to PixelIconArt.games,
+        listOf("shop", "tokopedia", "shopee", "lazada", "amazon", "bukalapak", "tkpd") to
+            PixelIconArt.shop,
+        listOf("bank", "wallet", "pay", "dana", "ovo", "gojek", "bca", "bri", "mandiri") to
+            PixelIconArt.bank,
+        listOf("mail") to PixelIconArt.mail,
+        listOf("note", "keep", "memo") to PixelIconArt.note,
+        listOf("chat", "messenger", "signal", "line", "wechat") to PixelIconArt.chat,
     )
 
     /** Returns hand-drawn artwork for [packageName], or null to fall back. */

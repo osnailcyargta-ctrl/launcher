@@ -57,7 +57,18 @@ The strip above the drawer is a stack you assemble yourself:
 * Portrait and landscape both supported; the grid re-flows and the header
   collapses automatically.
 
-**The built-in icon pack**
+**Icon packs**
+
+Two of them ship from this repo:
+
+* The **built-in** pack, compiled into the launcher and selected with one tap.
+* A **standalone icon pack APK** (`pixel-icon-pack-*.apk`) in the ADW/Nova
+  format, so the same artwork also works in Nova, Lawnchair, Apex and ADW.
+
+Both are generated from the same grids by `tools/gen_iconpack.py` - edit a glyph
+there, re-run it, and the launcher and the pack update together.
+
+**How the built-in pack works**
 
 Popular apps get hand-drawn 12x12 artwork defined as character grids in Kotlin —
 no drawables to ship. Everything else keeps its real icon but is snapped to the

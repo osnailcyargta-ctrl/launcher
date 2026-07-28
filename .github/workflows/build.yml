@@ -38,12 +38,13 @@ jobs:
       - name: Install SDK packages
         run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      - name: Build debug + release APK
+      - name: Build launcher + icon pack
         env:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           set -o pipefail
-          ./gradlew assembleDebug assembleRelease --no-daemon 2>&1 | tee build.log
+          ./gradlew :app:assembleDebug :app:assembleRelease \
+            :iconpack:assembleRelease --no-daemon 2>&1 | tee build.log
 
       # Gradle buries compile errors under a few hundred lines of stack trace;
       # this repeats just the diagnostics at the end of the job log.
@@ -59,6 +60,8 @@ jobs:
           mkdir -p dist debug
           cp app/build/outputs/apk/release/app-release.apk \
              "dist/pixel-launcher-v1.0.${{ github.run_number }}.apk"
+          cp iconpack/build/outputs/apk/release/iconpack-release.apk \
+             "dist/pixel-icon-pack-v1.0.${{ github.run_number }}.apk"
           cp app/build/outputs/apk/debug/app-debug.apk \
              "debug/pixel-launcher-v1.0.${{ github.run_number }}-debug.apk"
           ls -lh dist debug
@@ -95,9 +98,14 @@ jobs:
           body: |
             Automatic build from `${{ github.ref_name }}` @ `${{ github.sha }}`.
 
-            **Install `pixel-launcher-v1.0.${{ github.run_number }}.apk`**, then press
-            HOME and pick Pixel Launcher (or use Settings > Set as default launcher
-            inside the app).
+            **`pixel-launcher-v1.0.${{ github.run_number }}.apk`** - the launcher.
+            Install it, press HOME and pick Pixel Launcher (or use
+            Settings > Set as default launcher inside the app).
+
+            **`pixel-icon-pack-v1.0.${{ github.run_number }}.apk`** - optional.
+            46 hand-drawn pixel icons as a standalone ADW/Nova icon pack. Install
+            it, then choose it in Settings > Icons > Icon artwork > ICON PACK.
+            It also works in Nova, Lawnchair, Apex and ADW.
 
             Minified release build, signed with the project key, zero permissions.
             The debug build is not published here - it is available as a workflow
