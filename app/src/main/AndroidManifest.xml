@@ -5,7 +5,8 @@
       Package visibility (Android 11+). A launcher must be able to enumerate every
       installed app, not just the pre-installed ones. Declaring the MAIN/LAUNCHER
       intent here grants visibility of all launchable apps without the
-      Play-restricted QUERY_ALL_PACKAGES permission.
+      Play-restricted QUERY_ALL_PACKAGES permission. The two theme actions do the
+      same for installed icon packs.
     -->
     <queries>
         <intent>
@@ -13,8 +14,10 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
         <intent>
-            <action android:name="android.intent.action.MAIN" />
-            <category android:name="android.intent.category.INFO" />
+            <action android:name="org.adw.launcher.THEMES" />
+        </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
         </intent>
     </queries>
 
@@ -31,16 +34,20 @@
     <application
         android:name=".PixelLauncherApp"
         android:allowBackup="true"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="Pixel Launcher"
         android:largeHeap="false"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PixelLauncher">
+        android:theme="@android:style/Theme.Material.Wallpaper.NoTitleBar">
 
+        <!--
+          The platform's own wallpaper theme replaces a hand-written styles file:
+          it already gives a transparent window over the wallpaper. Everything
+          else about the look - colours, type, insets, system bars - is decided in
+          Kotlin at runtime so it can change without an activity restart.
+        -->
         <activity
             android:name=".HomeActivity"
             android:clearTaskOnLaunch="true"
@@ -52,8 +59,7 @@
             android:resizeableActivity="true"
             android:screenOrientation="unspecified"
             android:stateNotNeeded="true"
-            android:theme="@style/Theme.PixelLauncher"
-            android:windowSoftInputMode="adjustPan">
+            android:windowSoftInputMode="adjustResize">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -64,7 +70,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Keeps the drawer responsive without ever running background work. -->
         <meta-data
             android:name="android.max_aspect"
             android:value="10.0" />

@@ -3,12 +3,14 @@ package com.pixel.launcher.ui
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import com.pixel.launcher.R
 import com.pixel.launcher.audio.Sfx
 import com.pixel.launcher.core.IconLoader
 import com.pixel.launcher.core.Palette
+import com.pixel.launcher.core.PixelFont
 import com.pixel.launcher.core.Settings
 
 /** A CRT colour scheme. Five of them ship with the launcher. */
@@ -23,7 +25,19 @@ data class RetroPalette(
     val accentDim: Color,
     val text: Color,
     val textDim: Color,
-)
+) {
+    /**
+     * Four shades, darkest first. Used to re-colour app icons into the palette
+     * the same way a two-bit handheld would.
+     */
+    val shades: List<Int>
+        get() = listOf(
+            background.toArgb(),
+            accentDim.toArgb(),
+            accent.toArgb(),
+            text.toArgb(),
+        )
+}
 
 private val Green = RetroPalette(
     id = Palette.GREEN,
@@ -95,11 +109,54 @@ fun paletteOf(palette: Palette): RetroPalette = when (palette) {
 
 val AllPalettes: List<RetroPalette> = listOf(Green, Amber, Cyan, Magenta, Ice)
 
-/** Press Start 2P for headings, VT323 for anything that has to stay readable. */
+/** The bundled typefaces, resolved lazily so unused ones are never loaded. */
 object PixelFonts {
-    val Display = FontFamily(Font(R.font.pressstart2p))
-    val Body = FontFamily(Font(R.font.vt323))
+    val PressStart: FontFamily by lazy { FontFamily(Font(R.font.pressstart2p)) }
+    val Silkscreen: FontFamily by lazy { FontFamily(Font(R.font.silkscreen)) }
+    val Pixelify: FontFamily by lazy { FontFamily(Font(R.font.pixelifysans)) }
+    val Vt323: FontFamily by lazy { FontFamily(Font(R.font.vt323)) }
+
+    fun of(font: PixelFont): FontFamily = when (font) {
+        PixelFont.PRESS_START -> PressStart
+        PixelFont.SILKSCREEN -> Silkscreen
+        PixelFont.PIXELIFY -> Pixelify
+        PixelFont.VT323 -> Vt323
+        PixelFont.MONO -> FontFamily.Monospace
+    }
+
+    /**
+     * Press Start 2P is drawn on a much larger em square than the others, so a
+     * shared point size would make it tower over them. This evens them out.
+     */
+    fun sizeFactor(font: PixelFont): Float = when (font) {
+        PixelFont.PRESS_START -> 1.0f
+        PixelFont.SILKSCREEN -> 1.15f
+        PixelFont.PIXELIFY -> 1.35f
+        PixelFont.VT323 -> 1.0f
+        PixelFont.MONO -> 1.0f
+    }
 }
+
+/** The resolved type for the current settings. */
+@Immutable
+data class LauncherTypography(
+    val display: FontFamily,
+    val displayFactor: Float,
+    val body: FontFamily,
+    val bodyFactor: Float,
+    val scale: Float,
+) {
+    fun displayScale(): Float = displayFactor * scale
+    fun bodyScale(): Float = bodyFactor * scale
+}
+
+fun typographyOf(settings: Settings): LauncherTypography = LauncherTypography(
+    display = PixelFonts.of(settings.displayFont),
+    displayFactor = PixelFonts.sizeFactor(settings.displayFont),
+    body = PixelFonts.of(settings.bodyFont),
+    bodyFactor = PixelFonts.sizeFactor(settings.bodyFont),
+    scale = (settings.textScale / 100f).coerceIn(0.6f, 1.8f),
+)
 
 val LocalRetro = staticCompositionLocalOf<RetroPalette> {
     error("RetroPalette not provided")
@@ -112,4 +169,7 @@ val LocalSfx = staticCompositionLocalOf<Sfx> {
 }
 val LocalIcons = staticCompositionLocalOf<IconLoader> {
     error("IconLoader not provided")
+}
+val LocalTypography = staticCompositionLocalOf<LauncherTypography> {
+    error("Typography not provided")
 }

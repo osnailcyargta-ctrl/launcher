@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -71,6 +72,35 @@ fun TileIcon(tile: Tile, spec: IconLoader.Spec, size: Dp, modifier: Modifier = M
                 dim = retro.background.copy(alpha = 0.55f),
                 modifier = Modifier.size(size * 0.62f),
             )
+        }
+        return
+    }
+
+    if (tile is Tile.Group) {
+        // A folder shows the first four members as a mini grid, the way a
+        // physical set of app cards would stack in a slot.
+        Box(
+            modifier = modifier
+                .size(size)
+                .clip(shapeOf(spec.shape))
+                .background(retro.panel)
+                .padding(size * 0.09f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(size * 0.04f)) {
+                repeat(2) { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(size * 0.04f)) {
+                        repeat(2) { column ->
+                            val member = tile.entries.getOrNull(row * 2 + column)
+                            if (member == null) {
+                                Box(Modifier.size(size * 0.37f))
+                            } else {
+                                TileIcon(Tile.App(member), spec, size * 0.37f)
+                            }
+                        }
+                    }
+                }
+            }
         }
         return
     }

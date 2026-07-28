@@ -1,5 +1,6 @@
 package com.pixel.launcher.core
 
+import android.content.ComponentName
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -27,7 +28,7 @@ import kotlinx.coroutines.withContext
  *  1. Nothing is decoded until a tile is actually on screen.
  *  2. Decoding runs on at most two threads, so scrolling never spins up the
  *     whole CPU (which is what drains the battery on a big app list).
- *  3. With pixel mode on, the cached bitmap is the *small* one — a 48x48 icon
+ *  3. With pixel mode on, the cached bitmap is the *small* one - a 48x48 icon
  *     costs 9 KB instead of 147 KB, so hundreds of apps stay in memory and are
  *     never re-decoded.
  */
@@ -48,10 +49,28 @@ class IconLoader(context: Context) {
     @Volatile
     private var signature: String = ""
 
+    @Volatile
+    private var externalPack: ExternalIconPack? = null
+
+    @Volatile
+    private var externalPackName: String = ""
+
     /** Drops every cached bitmap when the icon appearance settings change. */
     fun applySignature(next: String) {
         if (next == signature) return
         signature = next
+        cache.evictAll()
+    }
+
+    /** Loads (or clears) the third-party icon pack. Safe to call repeatedly. */
+    suspend fun useExternalPack(packageName: String) {
+        if (packageName == externalPackName) return
+        externalPackName = packageName
+        externalPack = if (packageName.isBlank()) {
+            null
+        } else {
+            withContext(dispatcher) { ExternalIconPack.load(appContext, packageName) }
+        }
         cache.evictAll()
     }
 
@@ -65,14 +84,35 @@ class IconLoader(context: Context) {
     suspend fun load(entry: AppEntry, spec: Spec): ImageBitmap? {
         cache.get(entry.key)?.let { return it }
         return withContext(dispatcher) {
-            val drawable = resolveDrawable(entry) ?: return@withContext null
-            val bitmap = runCatching { render(drawable, spec) }.getOrNull()
+            val bitmap = runCatching { renderFor(entry, spec) }.getOrNull()
                 ?: return@withContext null
             bitmap.asImageBitmap().also { cache.put(entry.key, it) }
         }
     }
 
-    private fun resolveDrawable(entry: AppEntry): Drawable? {
+    private fun renderFor(entry: AppEntry, spec: Spec): Bitmap? {
+        // The launcher's own pack draws straight from its character grids, so
+        // there is no drawable to decode at all for a matched app.
+        if (spec.source == IconSource.BUILT_IN) {
+            PixelIconPack.match(entry.packageName)?.let { art ->
+                return downscale(maskShape(drawPixelIcon(art, spec.renderPx), spec), spec)
+            }
+        }
+
+        val drawable = resolveDrawable(entry, spec) ?: return null
+        var bitmap = render(drawable, spec)
+        if (spec.source == IconSource.BUILT_IN && spec.shades.size >= 2) {
+            bitmap = quantize(bitmap, spec.shades)
+        }
+        return bitmap
+    }
+
+    private fun resolveDrawable(entry: AppEntry, spec: Spec): Drawable? {
+        if (spec.source == IconSource.EXTERNAL) {
+            externalPack
+                ?.drawableFor(ComponentName(entry.packageName, entry.className))
+                ?.let { return it }
+        }
         entry.info?.let { info ->
             // getBadgedIcon() also stamps the work-profile badge for free.
             runCatching { info.getBadgedIcon(densityDpi) }.getOrNull()?.let { return it }
@@ -80,6 +120,81 @@ class IconLoader(context: Context) {
         }
         return runCatching { packageManager.getApplicationIcon(entry.packageName) }.getOrNull()
     }
+
+    // ------------------------------------------------------------- built-in art
+
+    private fun drawPixelIcon(art: PixelIcon, size: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(art.bg)
+
+        val columns = art.rows.maxOfOrNull { it.length } ?: return bitmap
+        if (columns == 0 || art.rows.isEmpty()) return bitmap
+        val cell = size.toFloat() / maxOf(columns, art.rows.size)
+        val originX = (size - cell * columns) / 2f
+        val originY = (size - cell * art.rows.size) / 2f
+
+        val paint = Paint()
+        for (y in art.rows.indices) {
+            val row = art.rows[y]
+            for (x in row.indices) {
+                paint.color = when (row[x]) {
+                    '#' -> art.fg
+                    '+' -> art.accent
+                    else -> continue
+                }
+                val left = originX + x * cell
+                val top = originY + y * cell
+                canvas.drawRect(left, top, left + cell + 0.5f, top + cell + 0.5f, paint)
+            }
+        }
+        return bitmap
+    }
+
+    /**
+     * Snaps every pixel to the nearest palette shade by brightness, which is what
+     * turns an ordinary app icon into something that belongs on a green CRT.
+     */
+    private fun quantize(bitmap: Bitmap, shades: List<Int>): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        val luminance = IntArray(shades.size) { index ->
+            val color = shades[index]
+            val r = (color shr 16) and 0xFF
+            val g = (color shr 8) and 0xFF
+            val b = color and 0xFF
+            (r * 299 + g * 587 + b * 114) / 1000
+        }
+
+        for (i in pixels.indices) {
+            val pixel = pixels[i]
+            val alpha = pixel ushr 24
+            if (alpha == 0) continue
+            val r = (pixel shr 16) and 0xFF
+            val g = (pixel shr 8) and 0xFF
+            val b = pixel and 0xFF
+            val lum = (r * 299 + g * 587 + b * 114) / 1000
+
+            var best = 0
+            var bestDistance = Int.MAX_VALUE
+            for (index in shades.indices) {
+                val distance = kotlin.math.abs(luminance[index] - lum)
+                if (distance < bestDistance) {
+                    bestDistance = distance
+                    best = index
+                }
+            }
+            pixels[i] = (alpha shl 24) or (shades[best] and 0x00FFFFFF)
+        }
+
+        bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+        return bitmap
+    }
+
+    // ---------------------------------------------------------------- pipeline
 
     private fun render(drawable: Drawable, spec: Spec): Bitmap {
         val size = spec.renderPx
@@ -99,13 +214,18 @@ class IconLoader(context: Context) {
         }
         drawable.draw(srcCanvas)
 
-        if (spec.shape == IconShape.ORIGINAL) return downscale(src, spec)
+        return downscale(maskShape(src, spec), spec)
+    }
 
+    private fun maskShape(source: Bitmap, spec: Spec): Bitmap {
+        if (spec.shape == IconShape.ORIGINAL) return source
+
+        val size = source.width
         val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(out)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             isFilterBitmap = true
-            shader = BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+            shader = BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
         }
         val bounds = RectF(0f, 0f, size.toFloat(), size.toFloat())
         when (spec.shape) {
@@ -117,8 +237,8 @@ class IconLoader(context: Context) {
             else -> canvas.drawRect(bounds, paint)
         }
         // The shader has already been consumed by the draw call above.
-        src.recycle()
-        return downscale(out, spec)
+        source.recycle()
+        return out
     }
 
     /**
@@ -144,14 +264,18 @@ class IconLoader(context: Context) {
         val pixelate: Boolean,
         val pixelPx: Int,
         val renderPx: Int,
+        val source: IconSource,
+        val shades: List<Int>,
     )
 
     companion object {
-        fun specOf(settings: Settings): Spec = Spec(
+        fun specOf(settings: Settings, shades: List<Int>): Spec = Spec(
             shape = settings.iconShape,
             pixelate = settings.pixelIcons,
             pixelPx = settings.pixelLevel.coerceIn(16, 128),
             renderPx = if (settings.lowPower) 96 else 192,
+            source = settings.iconSource,
+            shades = shades,
         )
     }
 }

@@ -15,20 +15,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -48,13 +55,14 @@ fun DisplayText(
     align: TextAlign = TextAlign.Unspecified,
     letterSpacing: TextUnit = 0.sp,
 ) {
+    val typography = LocalTypography.current
     BasicText(
         text = text,
         modifier = modifier,
         style = TextStyle(
             color = color,
-            fontSize = size,
-            fontFamily = PixelFonts.Display,
+            fontSize = size * typography.displayScale(),
+            fontFamily = typography.display,
             letterSpacing = letterSpacing,
             textAlign = align,
         ),
@@ -73,13 +81,14 @@ fun BodyText(
     align: TextAlign = TextAlign.Unspecified,
     letterSpacing: TextUnit = 0.sp,
 ) {
+    val typography = LocalTypography.current
     BasicText(
         text = text,
         modifier = modifier,
         style = TextStyle(
             color = color,
-            fontSize = size,
-            fontFamily = PixelFonts.Body,
+            fontSize = size * typography.bodyScale(),
+            fontFamily = typography.body,
             letterSpacing = letterSpacing,
             textAlign = align,
         ),
@@ -356,4 +365,54 @@ fun ScanlineOverlay(modifier: Modifier = Modifier, strength: Float = 0.10f) {
         )
     }
     Box(modifier.fillMaxSize().drawBehind { drawRect(brush) })
+}
+
+// ------------------------------------------------------------------- input
+
+/**
+ * A single-line text field with the launcher's own caret and frame. Built on
+ * BasicTextField so it inherits nothing from Material.
+ */
+@Composable
+fun PixelTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "",
+    fontSize: TextUnit = 18.sp,
+    singleLine: Boolean = true,
+    focusRequester: FocusRequester? = null,
+    onSubmit: (() -> Unit)? = null,
+) {
+    val retro = LocalRetro.current
+    val typography = LocalTypography.current
+
+    Box(
+        modifier = modifier
+            .background(retro.edge)
+            .padding(2.dp)
+            .background(retro.panel)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty() && placeholder.isNotEmpty()) {
+            BodyText(text = placeholder, size = fontSize, color = retro.textDim)
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier),
+            singleLine = singleLine,
+            textStyle = TextStyle(
+                color = retro.text,
+                fontSize = fontSize * typography.bodyScale(),
+                fontFamily = typography.body,
+            ),
+            cursorBrush = SolidColor(retro.accent),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onSubmit?.invoke() }),
+        )
+    }
 }

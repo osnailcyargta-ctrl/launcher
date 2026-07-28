@@ -45,21 +45,39 @@ class Sfx(context: Context, private val prefs: Prefs) {
     @Volatile
     private var warmedUp = false
 
+    /**
+     * A tap that arrived before its clip finished decoding. Replaying it on the
+     * load callback means the very first tap after a cold start still makes a
+     * sound instead of silently doing nothing.
+     */
+    @Volatile
+    private var pendingEvent: SfxEvent? = null
+
     private fun ensurePool(): SoundPool {
         pool?.let { return it }
         return synchronized(this) {
             pool ?: SoundPool.Builder()
-                .setMaxStreams(3)
+                .setMaxStreams(4)
                 .setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                        // USAGE_GAME routes to the media stream. The sonification
+                        // usage lands on the system stream instead, which is
+                        // muted or near-silent on a lot of phones - that is why
+                        // the effects could not be heard.
+                        .setUsage(AudioAttributes.USAGE_GAME)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build(),
                 )
                 .build()
                 .also { created ->
                     created.setOnLoadCompleteListener { _, sampleId, status ->
-                        if (status == 0) readyIds[sampleId] = true
+                        if (status != 0) return@setOnLoadCompleteListener
+                        readyIds[sampleId] = true
+                        val queued = pendingEvent
+                        if (queued != null && soundIds[queued] == sampleId) {
+                            pendingEvent = null
+                            playNow(created, sampleId)
+                        }
                     }
                     pool = created
                 }
@@ -96,21 +114,43 @@ class Sfx(context: Context, private val prefs: Prefs) {
     fun play(event: SfxEvent) {
         val settings = prefs.settings.value
         if (!settings.soundEnabled || settings.volume <= 0) return
-        // Match every other app: stay quiet while the phone is on silent/vibrate.
-        if (audioManager?.ringerMode == AudioManager.RINGER_MODE_SILENT ||
-            audioManager?.ringerMode == AudioManager.RINGER_MODE_VIBRATE
-        ) {
+        if (settings.respectSilentMode && isPhoneSilent()) return
+
+        if (!warmedUp) warmUp()
+        val target = pool ?: run {
+            // The pool is still being built; remember the tap so it is not lost.
+            pendingEvent = event
             return
         }
-        if (!warmedUp) warmUp()
+        val id = soundIds[event] ?: run {
+            pendingEvent = event
+            return
+        }
+        if (readyIds[id] != true) {
+            pendingEvent = event
+            return
+        }
+        playNow(target, id)
+    }
 
-        val target = pool ?: return
-        val id = soundIds[event] ?: return
-        if (readyIds[id] != true) return
-
-        val volume = (settings.volume / 100f).coerceIn(0f, 1f)
+    private fun playNow(target: SoundPool, id: Int) {
+        val volume = (prefs.settings.value.volume / 100f).coerceIn(0f, 1f)
         runCatching { target.play(id, volume, volume, 1, 0, 1f) }
-            .onFailure { Log.w(TAG, "play failed for $event", it) }
+            .onFailure { Log.w(TAG, "play failed for sample $id", it) }
+    }
+
+    private fun isPhoneSilent(): Boolean {
+        val mode = audioManager?.ringerMode ?: return false
+        return mode == AudioManager.RINGER_MODE_SILENT ||
+            mode == AudioManager.RINGER_MODE_VIBRATE
+    }
+
+    /** True when the media stream itself is turned all the way down. */
+    fun isSystemVolumeZero(): Boolean {
+        val manager = audioManager ?: return false
+        return runCatching {
+            manager.getStreamVolume(AudioManager.STREAM_MUSIC) == 0
+        }.getOrDefault(false)
     }
 
     // --------------------------------------------------------- custom clips
@@ -170,7 +210,7 @@ class Sfx(context: Context, private val prefs: Prefs) {
 
     private fun reload(event: SfxEvent) {
         scope.launch {
-            val target = pool ?: return@launch
+            val target = pool ?: ensurePool()
             soundIds.remove(event)?.let { old ->
                 readyIds.remove(old)
                 runCatching { target.unload(old) }
@@ -183,6 +223,7 @@ class Sfx(context: Context, private val prefs: Prefs) {
         pool?.release()
         pool = null
         warmedUp = false
+        pendingEvent = null
         soundIds.clear()
         readyIds.clear()
     }

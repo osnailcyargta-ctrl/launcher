@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -30,6 +31,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,19 +40,31 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pixel.launcher.BuildConfig
 import com.pixel.launcher.PixelLauncherApp
 import com.pixel.launcher.core.ClockMode
+import com.pixel.launcher.core.ExternalIconPack
 import com.pixel.launcher.core.IconShape
+import com.pixel.launcher.core.IconSource
+import com.pixel.launcher.core.PixelFont
 import com.pixel.launcher.core.SfxEvent
+import com.pixel.launcher.core.TopWidget
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val PIXEL_LEVELS = listOf(24, 32, 48, 64)
 private val COLUMN_CHOICES = listOf(0, 3, 4, 5, 6)
+private val FONT_LABELS = mapOf(
+    PixelFont.PRESS_START to "ARCADE",
+    PixelFont.SILKSCREEN to "SILK",
+    PixelFont.PIXELIFY to "PIXELIFY",
+    PixelFont.VT323 to "TERMINAL",
+    PixelFont.MONO to "SYSTEM",
+)
 
 @Composable
 fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
@@ -62,8 +76,14 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
 
     val hidden by app.prefs.hidden.collectAsStateWithLifecycle()
     val customSounds by app.prefs.customSounds.collectAsStateWithLifecycle()
+    val folders by app.prefs.folders.collectAsStateWithLifecycle()
 
     BackHandler(enabled = true) { onClose() }
+
+    var installedPacks by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        installedPacks = withContext(Dispatchers.IO) { ExternalIconPack.installed(context) }
+    }
 
     var pendingSound by remember { mutableStateOf<SfxEvent?>(null) }
     val soundPicker = rememberLauncherForActivityResult(
@@ -94,6 +114,7 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
+            .imePadding()
             .padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -144,6 +165,60 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
             }
         }
         item {
+            SettingBlock("ICON ARTWORK") {
+                PixelChoiceWrap(
+                    options = listOf("APP DEFAULT", "PIXEL PACK", "ICON PACK"),
+                    selectedIndex = when (settings.iconSource) {
+                        IconSource.SYSTEM -> 0
+                        IconSource.BUILT_IN -> 1
+                        IconSource.EXTERNAL -> 2
+                    },
+                    onSelect = { index ->
+                        tick()
+                        app.prefs.update {
+                            it.copy(
+                                iconSource = when (index) {
+                                    0 -> IconSource.SYSTEM
+                                    1 -> IconSource.BUILT_IN
+                                    else -> IconSource.EXTERNAL
+                                },
+                            )
+                        }
+                    },
+                )
+            }
+        }
+        if (settings.iconSource == IconSource.BUILT_IN) {
+            item {
+                Hint(
+                    "The launcher's own pixel pack. Popular apps get hand-drawn art; " +
+                        "everything else is re-coloured into the active palette.",
+                )
+            }
+        }
+        if (settings.iconSource == IconSource.EXTERNAL) {
+            item {
+                SettingBlock("INSTALLED ICON PACKS") {
+                    if (installedPacks.isEmpty()) {
+                        Hint("No icon packs installed. Any Nova or ADW pack from the store works.")
+                    } else {
+                        PixelChoiceWrap(
+                            options = installedPacks.map { it.second.uppercase() },
+                            selectedIndex = installedPacks.indexOfFirst {
+                                it.first == settings.iconPackPackage
+                            },
+                            onSelect = { index ->
+                                tick()
+                                app.prefs.update {
+                                    it.copy(iconPackPackage = installedPacks[index].first)
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        item {
             ToggleRow("PIXEL ART ICONS", settings.pixelIcons) {
                 tick()
                 app.prefs.update { it.copy(pixelIcons = !it.pixelIcons) }
@@ -164,11 +239,29 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
             }
         }
         item {
+            SettingBlock("ICON SIZE  ${settings.iconScale}%") {
+                PixelStepper(
+                    value = settings.iconScale,
+                    onChange = { value ->
+                        tick()
+                        app.prefs.update { it.copy(iconScale = value) }
+                    },
+                    step = 10,
+                    min = 60,
+                    max = 150,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        item {
             ToggleRow("APP LABELS", settings.showLabels) {
                 tick()
                 app.prefs.update { it.copy(showLabels = !it.showLabels) }
             }
         }
+
+        // ------------------------------------------------------------ layout
+        item { SectionHeader("LAYOUT") }
         item {
             SettingBlock("COLUMNS") {
                 PixelChoiceWrap(
@@ -179,6 +272,137 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
                         app.prefs.update { it.copy(columns = COLUMN_CHOICES[index]) }
                     },
                 )
+            }
+        }
+        item {
+            ToggleRow("SEARCH BAR", settings.showSearch) {
+                tick()
+                app.prefs.update { it.copy(showSearch = !it.showSearch) }
+            }
+        }
+        item {
+            ToggleRow("A-Z SCROLL BAR", settings.showAlphabetBar) {
+                tick()
+                app.prefs.update { it.copy(showAlphabetBar = !it.showAlphabetBar) }
+            }
+        }
+        item {
+            ToggleRow("SETTINGS TILE IN DRAWER", settings.showSettingsTile) {
+                tick()
+                app.prefs.update { it.copy(showSettingsTile = !it.showSettingsTile) }
+            }
+        }
+        item {
+            Hint("Folders: hold any app and choose ADD TO FOLDER. ${folders.size} folder(s) so far.")
+        }
+
+        // -------------------------------------------------------------- type
+        item { SectionHeader("TYPE") }
+        item {
+            SettingBlock("HEADLINE FONT") {
+                PixelChoiceWrap(
+                    options = PixelFont.entries.map { FONT_LABELS.getValue(it) },
+                    selectedIndex = PixelFont.entries.indexOf(settings.displayFont),
+                    onSelect = { index ->
+                        tick()
+                        app.prefs.update { it.copy(displayFont = PixelFont.entries[index]) }
+                    },
+                )
+            }
+        }
+        item {
+            SettingBlock("BODY FONT") {
+                PixelChoiceWrap(
+                    options = PixelFont.entries.map { FONT_LABELS.getValue(it) },
+                    selectedIndex = PixelFont.entries.indexOf(settings.bodyFont),
+                    onSelect = { index ->
+                        tick()
+                        app.prefs.update { it.copy(bodyFont = PixelFont.entries[index]) }
+                    },
+                )
+            }
+        }
+        item {
+            SettingBlock("TEXT SIZE  ${settings.textScale}%") {
+                PixelStepper(
+                    value = settings.textScale,
+                    onChange = { value ->
+                        tick()
+                        app.prefs.update { it.copy(textScale = value) }
+                    },
+                    step = 10,
+                    min = 70,
+                    max = 150,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        // ----------------------------------------------------------- widgets
+        item { SectionHeader("TOP WIDGETS") }
+        item {
+            ToggleRow("CLOCK + DATE", TopWidget.CLOCK in settings.widgets) {
+                tick()
+                app.prefs.update { it.copy(widgets = it.widgets.toggle(TopWidget.CLOCK)) }
+            }
+        }
+        if (TopWidget.CLOCK in settings.widgets) {
+            item {
+                SettingBlock("CLOCK FORMAT") {
+                    PixelChoiceWrap(
+                        options = listOf("SYSTEM", "24H", "12H"),
+                        selectedIndex = ClockMode.entries.indexOf(settings.clockMode),
+                        onSelect = { index ->
+                            tick()
+                            app.prefs.update { it.copy(clockMode = ClockMode.entries[index]) }
+                        },
+                    )
+                }
+            }
+            item {
+                ToggleRow("BATTERY READOUT", settings.showBattery) {
+                    tick()
+                    app.prefs.update { it.copy(showBattery = !it.showBattery) }
+                }
+            }
+        }
+        item {
+            ToggleRow("DINO RUNNER", TopWidget.DINO in settings.widgets) {
+                tick()
+                app.prefs.update { it.copy(widgets = it.widgets.toggle(TopWidget.DINO)) }
+            }
+        }
+        if (TopWidget.DINO in settings.widgets) {
+            item { Hint("Tap the dino to make it jump. It pauses whenever you leave the launcher.") }
+        }
+        item {
+            ToggleRow("CUSTOM TEXT", TopWidget.TEXT in settings.widgets) {
+                tick()
+                app.prefs.update { it.copy(widgets = it.widgets.toggle(TopWidget.TEXT)) }
+            }
+        }
+        if (TopWidget.TEXT in settings.widgets) {
+            item {
+                var draft by remember(settings.customText) { mutableStateOf(settings.customText) }
+                SettingBlock("YOUR TEXT") {
+                    Column {
+                        PixelTextField(
+                            value = draft,
+                            onValueChange = { draft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = "TYPE SOMETHING",
+                            onSubmit = { app.prefs.update { s -> s.copy(customText = draft) } },
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        PixelButton(
+                            text = "SAVE TEXT",
+                            onClick = {
+                                tick()
+                                app.prefs.update { s -> s.copy(customText = draft) }
+                            },
+                        )
+                    }
+                }
             }
         }
 
@@ -228,30 +452,6 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
                 app.prefs.update { it.copy(animations = !it.animations) }
             }
         }
-        item {
-            SettingBlock("CLOCK") {
-                PixelChoiceWrap(
-                    options = listOf("SYSTEM", "24H", "12H"),
-                    selectedIndex = ClockMode.entries.indexOf(settings.clockMode),
-                    onSelect = { index ->
-                        tick()
-                        app.prefs.update { it.copy(clockMode = ClockMode.entries[index]) }
-                    },
-                )
-            }
-        }
-        item {
-            ToggleRow("BATTERY READOUT", settings.showBattery) {
-                tick()
-                app.prefs.update { it.copy(showBattery = !it.showBattery) }
-            }
-        }
-        item {
-            ToggleRow("SETTINGS TILE IN DRAWER", settings.showSettingsTile) {
-                tick()
-                app.prefs.update { it.copy(showSettingsTile = !it.showSettingsTile) }
-            }
-        }
 
         // ------------------------------------------------------------- sound
         item { SectionHeader("SOUND") }
@@ -262,7 +462,7 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
             }
         }
         item {
-            SettingBlock("VOLUME") {
+            SettingBlock("VOLUME  ${settings.volume}%") {
                 PixelStepper(
                     value = settings.volume,
                     onChange = { value ->
@@ -274,7 +474,16 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
             }
         }
         item {
-            Hint("Muted automatically while the phone is on silent or vibrate.")
+            ToggleRow("MUTE WHEN PHONE IS SILENT", settings.respectSilentMode) {
+                app.prefs.update { it.copy(respectSilentMode = !it.respectSilentMode) }
+                sfx.play(SfxEvent.TOGGLE)
+            }
+        }
+        item {
+            Hint(
+                "Effects play on the media volume. If you hear nothing, turn the media " +
+                    "volume up with the side keys while the launcher is open.",
+            )
         }
         items(SfxEvent.entries.toList(), key = { it.name }) { event ->
             SoundRow(
@@ -311,7 +520,7 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
             }
         }
         item {
-            Hint("Drops scanlines, open animations and icon detail. Best for long days off the charger.")
+            Hint("Stops the dino, scanlines and open animations, and drops icon detail.")
         }
         item {
             ToggleRow("HAPTICS", settings.haptics) {
@@ -394,6 +603,9 @@ fun SettingsScreen(app: PixelLauncherApp, onClose: () -> Unit) {
     }
 }
 
+private fun <T> Set<T>.toggle(value: T): Set<T> =
+    if (value in this) this - value else this + value
+
 // ----------------------------------------------------------------- widgets
 
 @Composable
@@ -428,6 +640,7 @@ private fun ToggleRow(label: String, checked: Boolean, onToggle: () -> Unit) {
             size = 18.sp,
             color = retro.text,
             letterSpacing = 1.sp,
+            maxLines = 2,
             modifier = Modifier.weight(1f),
         )
         PixelToggle(checked = checked, onToggle = onToggle)
@@ -441,7 +654,7 @@ private fun Hint(text: String) {
         text = text,
         size = 15.sp,
         color = retro.textDim,
-        maxLines = 3,
+        maxLines = 4,
         modifier = Modifier.fillMaxWidth(),
     )
 }

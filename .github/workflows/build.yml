@@ -56,18 +56,20 @@ jobs:
 
       - name: Rename artifacts
         run: |
-          mkdir -p dist
+          mkdir -p dist debug
           cp app/build/outputs/apk/release/app-release.apk \
              "dist/pixel-launcher-v1.0.${{ github.run_number }}.apk"
           cp app/build/outputs/apk/debug/app-debug.apk \
-             "dist/pixel-launcher-v1.0.${{ github.run_number }}-debug.apk"
-          ls -lh dist
+             "debug/pixel-launcher-v1.0.${{ github.run_number }}-debug.apk"
+          ls -lh dist debug
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: pixel-launcher-apk
-          path: dist/*.apk
+          path: |
+            dist/*.apk
+            debug/*.apk
           if-no-files-found: error
 
       # Every build on the default/feature branch refreshes a single "latest"
@@ -84,6 +86,10 @@ jobs:
             **Install `pixel-launcher-v1.0.${{ github.run_number }}.apk`**, then press
             HOME and pick Pixel Launcher (or use Settings > Set as default launcher
             inside the app).
+
+            Minified release build, signed with the project key, zero permissions.
+            The debug build is not published here - it is available as a workflow
+            artifact when a debuggable APK is actually needed.
           files: dist/*.apk
           prerelease: false
           make_latest: true
