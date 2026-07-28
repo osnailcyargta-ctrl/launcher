@@ -9,3 +9,5 @@ captures/
 local.properties
 dist/
 debug/
+__pycache__/
+*.pyc
