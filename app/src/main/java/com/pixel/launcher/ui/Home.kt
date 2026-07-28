@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -183,7 +184,13 @@ private fun HomeScreen(
         }
     }
 
-    val tiles = remember(visibleApps, folderTiles, groupedKeys, settings.showSettingsTile, query) {
+    val tiles: List<Tile> = remember(
+        visibleApps,
+        folderTiles,
+        groupedKeys,
+        settings.showSettingsTile,
+        query,
+    ) {
         val trimmed = query.trim()
         if (trimmed.isNotEmpty()) {
             // Search looks at every app, folders and hidden grouping aside.
@@ -192,7 +199,7 @@ private fun HomeScreen(
                 .filter { it.label.lowercase(Locale.getDefault()).contains(needle) }
                 .map { Tile.App(it) }
         } else {
-            buildList(visibleApps.size + folderTiles.size + 1) {
+            buildList<Tile>(visibleApps.size + folderTiles.size + 1) {
                 if (settings.showSettingsTile) add(Tile.Settings)
                 addAll(folderTiles)
                 for (entry in visibleApps) {
@@ -677,7 +684,7 @@ private fun AlphabetBar(
                 }
             }
             .pointerInput(letters) {
-                androidx.compose.foundation.gestures.detectTapGestures { offset ->
+                detectTapGestures { offset ->
                     activeLetter = null
                     pick(offset.y, size.height.toFloat())
                 }
